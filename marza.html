@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kalkulačka marže</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css">
+  <style>
+    :root {
+      --bg: #f8f9fb;
+      --surface: #ffffff;
+      --surface2: #f1f3f7;
+      --border: #e2e6ed;
+      --accent: #6366f1;
+      --accent-glow: rgba(99,102,241,0.15);
+      --text: #1a1d26;
+      --muted: #8a93a8;
+      --green: #16a34a;
+      --yellow: #ca8a04;
+      --red: #dc2626;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; padding: 32px 20px;
+    }
+    .wrapper { max-width: 780px; margin: 0 auto; }
+
+    /* ── Currency switcher ── */
+    .currency-switcher {
+      display: flex; gap: 6px; margin-bottom: 20px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 6px;
+    }
+    .curr-btn {
+      flex: 1; padding: 10px 16px; border: none; border-radius: 9px;
+      background: transparent; cursor: pointer;
+      font-size: 0.95rem; font-weight: 600; color: var(--muted);
+      transition: all 0.15s; display: flex; align-items: center;
+      justify-content: center; gap: 8px; font-family: inherit;
+    }
+    .curr-btn .fi {
+      font-size: 1.35rem;
+      border-radius: 3px;
+      flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+    }
+    .curr-btn.active {
+      background: var(--accent); color: #fff;
+      box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+    }
+    .curr-btn:not(.active):hover { background: var(--surface2); color: var(--text); }
+
+    /* ── Grid ── */
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 22px;
+    }
+    .card-label {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 18px;
+    }
+    .field { margin-bottom: 14px; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 6px; }
+
+    .input-wrap { position: relative; }
+    .input-wrap .unit {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      font-size: 0.82rem; color: var(--muted); pointer-events: none;
+    }
+    input[type="number"] {
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 44px 10px 12px; color: var(--text);
+      font-size: 0.98rem; outline: none; font-family: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    input[type="number"]:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    /* ── Rate direction toggle ── */
+    .rate-dir-toggle {
+      display: flex; gap: 4px; margin-bottom: 8px;
+      background: var(--surface2); border-radius: 8px; padding: 3px;
+    }
+    .dir-btn {
+      flex: 1; padding: 5px 6px; border: none; border-radius: 5px;
+      background: transparent; font-size: 0.7rem; font-weight: 600;
+      color: var(--muted); cursor: pointer; transition: all 0.12s;
+      white-space: nowrap; font-family: inherit;
+    }
+    .dir-btn.active {
+      background: var(--surface); color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    /* ── Hints ── */
+    .czk-hint { font-size: 0.73rem; color: var(--muted); margin-top: 5px; min-height: 1em; }
+
+    /* ── Slider card ── */
+    .slider-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 28px;
+    }
+    .slider-header {
+      display: flex; justify-content: space-between;
+      align-items: flex-start; margin-bottom: 28px;
+    }
+    .big-val { line-height: 1.1; }
+    .big-val .label {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 4px;
+    }
+
+    /* ── Editable price ── */
+    .price-wrap { display: flex; align-items: baseline; gap: 8px; }
+    .price-input {
+      font-size: 4rem; font-weight: 800; letter-spacing: -0.04em;
+      background: none; border: none; border-bottom: 2px solid transparent;
+      outline: none; color: var(--text); padding: 0 0 1px 0;
+      width: 7ch; font-family: inherit;
+      transition: border-bottom-color 0.15s;
+    }
+    .price-input:focus { border-bottom-color: var(--accent); }
+    .price-unit { font-size: 2.1rem; font-weight: 700; color: var(--muted); }
+    .big-val .sub { font-size: 0.78rem; color: var(--muted); margin-top: 4px; min-height: 1.2em; }
+
+    /* ── Margin display ── */
+    .big-val .number {
+      font-size: 2.6rem; font-weight: 800;
+      letter-spacing: -0.03em; color: var(--text);
+    }
+    .big-val .number.green  { color: var(--green); }
+    .big-val .number.yellow { color: var(--yellow); }
+    .big-val .number.red    { color: var(--red); }
+
+    /* ── Range slider ── */
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none; width: 100%; height: 6px;
+      border-radius: 3px; background: var(--border); outline: none; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+      background: var(--accent); border: 3px solid #fff; cursor: grab;
+      box-shadow: 0 0 0 2px var(--accent), 0 2px 8px rgba(99,102,241,0.3);
+      transition: box-shadow 0.15s;
+    }
+    input[type="range"]::-webkit-slider-thumb:active {
+      cursor: grabbing;
+      box-shadow: 0 0 0 4px var(--accent-glow), 0 2px 12px rgba(99,102,241,0.4);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--accent); border: 3px solid #fff; cursor: grab;
+    }
+    .slider-labels {
+      display: flex; justify-content: space-between;
+      margin-top: 10px; font-size: 0.72rem; color: var(--muted);
+    }
+
+    /* ── Margin bar ── */
+    .margin-bar-wrap { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+    .margin-bar-label {
+      display: flex; justify-content: space-between;
+      font-size: 0.72rem; color: var(--muted); margin-bottom: 8px;
+    }
+    .margin-bar-bg { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; }
+    .margin-bar-fill {
+      height: 100%; border-radius: 4px;
+      transition: width 0.1s, background 0.2s; background: var(--green);
+    }
+
+    @media (max-width: 540px) {
+      .row { grid-template-columns: 1fr; }
+      .price-input { font-size: 2.6rem; }
+      .price-unit { font-size: 1.4rem; }
+      .big-val .number { font-size: 2rem; }
+      .curr-btn { font-size: 0.85rem; padding: 9px 10px; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="currency-switcher">
+    <button class="curr-btn" data-currency="PLN"><span class="fi fi-pl"></span> PLN</button>
+    <button class="curr-btn active" data-currency="CZK"><span class="fi fi-cz"></span> CZK</button>
+    <button class="curr-btn" data-currency="EUR"><span class="fi fi-sk"></span> EUR</button>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <div class="card-label">Zakup</div>
+      <div class="field">
+        <label>Netto zakup</label>
+        <div class="input-wrap">
+          <input type="number" id="netto" placeholder="0.00" step="0.01" min="0">
+          <span class="unit">PLN</span>
+        </div>
+        <div class="czk-hint" id="netto-hint"></div>
+      </div>
+      <div class="field">
+        <label>Brutto zakup</label>
+        <div class="input-wrap">
+          <input type="number" id="brutto" placeholder="0.00" step="0.01" min="0">
+          <span class="unit">PLN</span>
+        </div>
+        <div class="czk-hint" id="brutto-hint"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Ustawienia</div>
+      <div class="field">
+        <label>Współczynnik VAT (np. 1,23)</label>
+        <div class="input-wrap">
+          <input type="number" id="vat" value="1.23" step="0.01" min="1">
+          <span class="unit">×</span>
+        </div>
+      </div>
+      <div class="field" id="rate-field-wrap">
+        <label id="rate-label">Kurz</label>
+        <div class="rate-dir-toggle">
+          <button class="dir-btn active" id="dir-direct"  data-dir="direct">1 Kč = ? PLN</button>
+          <button class="dir-btn"        id="dir-inverse" data-dir="inverse">? Kč = 1 PLN</button>
+        </div>
+        <div class="input-wrap">
+          <input type="number" id="rate" value="0.17" step="0.0001" min="0.0001">
+          <span class="unit" id="rate-unit">PLN</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slider-card">
+    <div class="card-label">Cena sprzedaży</div>
+    <div class="slider-header">
+      <div class="big-val">
+        <div class="price-wrap">
+          <input type="text" id="sell-price" class="price-input" inputmode="numeric" value="10 000">
+          <span class="price-unit" id="sell-unit">Kč</span>
+        </div>
+        <div class="sub" id="price-pln"></div>
+      </div>
+      <div class="big-val" style="text-align:right">
+        <div class="label">Marža</div>
+        <div class="number" id="margin-pct">–</div>
+      </div>
+    </div>
+
+    <input type="range" id="slider" min="0" max="100000" step="1" value="10000">
+    <div class="slider-labels" id="slider-labels"></div>
+
+    <div class="margin-bar-wrap">
+      <div class="margin-bar-label">
+        <span>Marža</span>
+        <span id="bar-pct-label">–</span>
+      </div>
+      <div class="margin-bar-bg">
+        <div class="margin-bar-fill" id="margin-bar" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+  const CURR = {
+    PLN: { symbol: 'PLN', sliderMax: 30000,  sliderDefault: 5000  },
+    CZK: { symbol: 'Kč',  sliderMax: 100000, sliderDefault: 10000 },
+    EUR: { symbol: '€',   sliderMax: 8000,   sliderDefault: 400   },
+  };
+
+  // Internal rate always = "1 foreign = X PLN"
+  const savedRates = { CZK: 0.17, EUR: 4.25 };
+  let mode    = 'CZK';
+  let rateDir = 'direct'; // direct: value is internalRate; inverse: value is 1/internalRate
+
+  const nettoEl        = document.getElementById('netto');
+  const bruttoEl       = document.getElementById('brutto');
+  const vatEl          = document.getElementById('vat');
+  const rateEl         = document.getElementById('rate');
+  const rateUnitEl     = document.getElementById('rate-unit');
+  const rateFieldWrap  = document.getElementById('rate-field-wrap');
+  const dirDirectBtn   = document.getElementById('dir-direct');
+  const dirInverseBtn  = document.getElementById('dir-inverse');
+  const sliderEl       = document.getElementById('slider');
+  const sliderLabelsEl = document.getElementById('slider-labels');
+  const sellPriceEl    = document.getElementById('sell-price');
+  const sellUnitEl     = document.getElementById('sell-unit');
+  const pricePlnEl     = document.getElementById('price-pln');
+  const marginPctEl    = document.getElementById('margin-pct');
+  const marginBar      = document.getElementById('margin-bar');
+  const barPctLabel    = document.getElementById('bar-pct-label');
+  const nettoHintEl    = document.getElementById('netto-hint');
+  const bruttoHintEl   = document.getElementById('brutto-hint');
+
+  let blockNetto  = false;
+  let blockBrutto = false;
+
+  function vat() { return parseFloat(vatEl.value) || 1.23; }
+
+  function parseSell(str) {
+    return parseInt(String(str).replace(/\D/g, '')) || 0;
+  }
+  function formatSell(val) {
+    return val > 0 ? val.toLocaleString('cs-CZ', { maximumFractionDigits: 0 }) : '0';
+  }
+
+  function getInternalRate() {
+    if (mode === 'PLN') return 1;
+    const v = parseFloat(rateEl.value) || 0.0001;
+    return rateDir === 'direct' ? v : 1 / v;
+  }
+
+  function fmt(n, d = 2) {
+    return n.toLocaleString('cs-CZ', { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+
+  function updateRateDirLabels() {
+    if (mode === 'PLN') return;
+    const sym = CURR[mode].symbol;
+    dirDirectBtn.textContent  = '1 ' + sym + ' = ? PLN';
+    dirInverseBtn.textContent = '? ' + sym + ' = 1 PLN';
+    rateUnitEl.textContent    = rateDir === 'direct' ? 'PLN' : sym;
+  }
+
+  function switchRateDir(newDir) {
+    if (newDir === rateDir) return;
+    const internal = getInternalRate();
+    rateDir = newDir;
+    rateEl.value = rateDir === 'direct'
+      ? internal.toFixed(4)
+      : (1 / internal).toFixed(4);
+    dirDirectBtn.classList.toggle('active',  rateDir === 'direct');
+    dirInverseBtn.classList.toggle('active', rateDir === 'inverse');
+    updateRateDirLabels();
+    update();
+  }
+
+  function updateSliderLabels() {
+    const max = CURR[mode].sliderMax;
+    const sym = CURR[mode].symbol;
+    const labels = [];
+    for (let i = 0; i <= 4; i++) {
+      const val = (max / 4) * i;
+      labels.push(i === 0 ? '0 ' + sym : i === 4 ? fmt(val, 0) + ' ' + sym : fmt(val, 0));
+    }
+    sliderLabelsEl.innerHTML = labels.map(l => '<span>' + l + '</span>').join('');
+  }
+
+  function switchCurrency(newMode) {
+    if (newMode === mode) return;
+    if (mode !== 'PLN') savedRates[mode] = getInternalRate();
+    mode = newMode;
+    const cfg = CURR[mode];
+
+    document.querySelectorAll('.curr-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.currency === mode)
+    );
+
+    if (mode === 'PLN') {
+      rateFieldWrap.style.display = 'none';
+    } else {
+      rateFieldWrap.style.display = '';
+      const internal = savedRates[mode];
+      rateEl.value = rateDir === 'direct'
+        ? internal.toFixed(4)
+        : (1 / internal).toFixed(4);
+      updateRateDirLabels();
+    }
+
+    sellPriceEl.value      = formatSell(cfg.sliderDefault);
+    sliderEl.max           = cfg.sliderMax;
+    sliderEl.step          = 1;
+    sliderEl.value         = cfg.sliderDefault;
+    sellUnitEl.textContent = cfg.symbol;
+    updateSliderLabels();
+    update();
+  }
+
+  // Event listeners
+  document.querySelectorAll('.curr-btn').forEach(b =>
+    b.addEventListener('click', () => switchCurrency(b.dataset.currency))
+  );
+  dirDirectBtn.addEventListener('click',  () => switchRateDir('direct'));
+  dirInverseBtn.addEventListener('click', () => switchRateDir('inverse'));
+
+  nettoEl.addEventListener('input', () => {
+    if (blockBrutto) return;
+    blockNetto = true;
+    const n = parseFloat(nettoEl.value);
+    bruttoEl.value = (isNaN(n) || n === 0) ? '' : (n * vat()).toFixed(2);
+    blockNetto = false;
+    update();
+  });
+
+  bruttoEl.addEventListener('input', () => {
+    if (blockNetto) return;
+    blockBrutto = true;
+    const b = parseFloat(bruttoEl.value);
+    nettoEl.value = (isNaN(b) || b === 0) ? '' : (b / vat()).toFixed(2);
+    blockBrutto = false;
+    update();
+  });
+
+  vatEl.addEventListener('input', () => {
+    const n = parseFloat(nettoEl.value);
+    if (!isNaN(n) && n > 0) bruttoEl.value = (n * vat()).toFixed(2);
+    update();
+  });
+
+  rateEl.addEventListener('input', () => {
+    if (mode !== 'PLN') savedRates[mode] = getInternalRate();
+    update();
+  });
+
+  // Sell price ↔ slider bidirectional sync
+  sellPriceEl.addEventListener('focus', () => {
+    const raw = parseSell(sellPriceEl.value);
+    sellPriceEl.value = raw > 0 ? String(raw) : '';
+  });
+  sellPriceEl.addEventListener('blur', () => {
+    sellPriceEl.value = formatSell(parseSell(sellPriceEl.value));
+  });
+  sellPriceEl.addEventListener('input', () => {
+    const val = parseSell(sellPriceEl.value);
+    sliderEl.value = Math.min(val, parseFloat(sliderEl.max));
+    update();
+  });
+
+  sliderEl.addEventListener('input', () => {
+    sellPriceEl.value = formatSell(parseInt(sliderEl.value));
+    update();
+  });
+
+  // Mouse wheel
+  function addWheel(el, stepFn, decimals, min) {
+    el.addEventListener('wheel', e => {
+      e.preventDefault();
+      const step = typeof stepFn === 'function' ? stepFn() : stepFn;
+      const dir  = e.deltaY < 0 ? 1 : -1;
+      const cur  = parseFloat(el.value) || 0;
+      const next = Math.max(min ?? 0, parseFloat((cur + dir * step).toFixed(decimals)));
+      el.value   = next;
+      el.dispatchEvent(new Event('input'));
+    }, { passive: false });
+  }
+
+  addWheel(nettoEl,     1,      2, 0);
+  addWheel(bruttoEl,    1,      2, 0);
+  addWheel(vatEl,       0.01,   2, 1);
+  addWheel(rateEl,      0.001,  4, 0.0001);
+  sellPriceEl.addEventListener('wheel', e => {
+    e.preventDefault();
+    const step = { PLN: 50, CZK: 100, EUR: 5 }[mode];
+    const next = Math.max(0, parseSell(sellPriceEl.value) + (e.deltaY < 0 ? 1 : -1) * step);
+    sellPriceEl.value = formatSell(next);
+    sliderEl.value = Math.min(next, parseFloat(sliderEl.max));
+    update();
+  }, { passive: false });
+
+  function update() {
+    const cfg           = CURR[mode];
+    const nettoZakup    = parseFloat(nettoEl.value) || 0;
+    const v             = vat();
+    const sellVal       = parseSell(sellPriceEl.value);
+    const costBruttoPln = nettoZakup * v;
+
+    let sellPlnBrutto;
+    if (mode === 'PLN') {
+      sellPlnBrutto = sellVal;
+      pricePlnEl.textContent = '';
+    } else {
+      const r = getInternalRate();
+      sellPlnBrutto = sellVal * r;
+      pricePlnEl.textContent = fmt(sellPlnBrutto, 2) + ' PLN';
+    }
+
+    // Hints: always show CZK + EUR equivalents of PLN purchase price
+    const netto  = parseFloat(nettoEl.value);
+    const brutto = parseFloat(bruttoEl.value);
+    nettoHintEl.textContent  = (!isNaN(netto)  && netto  > 0)
+      ? fmt(netto  / savedRates.CZK, 0) + ' Kč  ·  ' + fmt(netto  / savedRates.EUR, 2) + ' €'
+      : '';
+    bruttoHintEl.textContent = (!isNaN(brutto) && brutto > 0)
+      ? fmt(brutto / savedRates.CZK, 0) + ' Kč  ·  ' + fmt(brutto / savedRates.EUR, 2) + ' €'
+      : '';
+
+    // Margin
+    if (nettoZakup === 0 || sellVal === 0) {
+      marginPctEl.textContent = '–';
+      marginPctEl.className   = 'number';
+      marginBar.style.width   = '0%';
+      barPctLabel.textContent = '–';
+      return;
+    }
+
+    const margin    = (sellPlnBrutto - costBruttoPln) / sellPlnBrutto;
+    const marginPct = margin * 100;
+
+    marginPctEl.textContent = fmt(marginPct, 1) + ' %';
+    barPctLabel.textContent = fmt(marginPct, 1) + ' %';
+
+    if (marginPct >= 35) {
+      marginPctEl.className      = 'number green';
+      marginBar.style.background = 'var(--green)';
+    } else if (marginPct >= 5) {
+      marginPctEl.className      = 'number yellow';
+      marginBar.style.background = 'var(--yellow)';
+    } else {
+      marginPctEl.className      = 'number red';
+      marginBar.style.background = 'var(--red)';
+    }
+
+    marginBar.style.width = Math.max(0, Math.min(100, marginPct)) + '%';
+  }
+
+  // Init
+  updateRateDirLabels();
+  updateSliderLabels();
+  sellPriceEl.value = formatSell(CURR[mode].sliderDefault);
+  update();
+</script>
+</body>
+</html>
