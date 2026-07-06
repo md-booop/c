@@ -269,6 +269,37 @@
     </div>
   </div>
 
+  <div class="slider-card" style="margin-top:16px">
+    <div class="card-label">Zvýšenie / zníženie o %</div>
+    <div class="slider-header">
+      <div class="big-val">
+        <div class="price-wrap">
+          <input type="text" id="pct-amount" class="price-input" inputmode="numeric" value="1 000">
+        </div>
+        <div class="sub" id="pct-result-sub">Nová suma: –</div>
+      </div>
+      <div class="big-val" style="text-align:right">
+        <div class="label">Zmena</div>
+        <div class="number" id="pct-value">0 %</div>
+      </div>
+    </div>
+
+    <input type="range" id="pct-slider" min="-100" max="100" step="1" value="0">
+    <div class="slider-labels">
+      <span>-100 %</span><span>-50 %</span><span>0 %</span><span>+50 %</span><span>+100 %</span>
+    </div>
+
+    <div class="margin-bar-wrap">
+      <div class="margin-bar-label">
+        <span>Výsledok</span>
+        <span id="pct-diff-label">–</span>
+      </div>
+      <div class="big-val">
+        <div class="number" id="pct-result">–</div>
+      </div>
+    </div>
+  </div>
+
 </div>
 <script>
   const CURR = {
@@ -522,11 +553,66 @@
     marginBar.style.width = Math.max(0, Math.min(100, marginPct)) + '%';
   }
 
+  // ── Percentage increase/decrease calculator ──
+  const pctAmountEl   = document.getElementById('pct-amount');
+  const pctSliderEl   = document.getElementById('pct-slider');
+  const pctValueEl    = document.getElementById('pct-value');
+  const pctResultEl   = document.getElementById('pct-result');
+  const pctDiffLabel  = document.getElementById('pct-diff-label');
+  const pctResultSub  = document.getElementById('pct-result-sub');
+
+  function parsePctAmount(str) {
+    return parseFloat(String(str).replace(/\s/g, '').replace(',', '.')) || 0;
+  }
+  function formatPctAmount(val) {
+    return val.toLocaleString('cs-CZ', { maximumFractionDigits: 2 });
+  }
+
+  function updatePct() {
+    const amount = parsePctAmount(pctAmountEl.value);
+    const pct    = parseFloat(pctSliderEl.value) || 0;
+    const result = amount * (1 + pct / 100);
+    const diff   = result - amount;
+
+    pctValueEl.textContent = (pct > 0 ? '+' : '') + fmt(pct, 0) + ' %';
+    pctValueEl.className   = 'number' + (pct > 0 ? ' green' : pct < 0 ? ' red' : '');
+
+    pctResultEl.textContent = fmt(result, 2);
+    pctResultEl.className   = 'number' + (diff > 0 ? ' green' : diff < 0 ? ' red' : '');
+
+    const diffSign = diff > 0 ? '+' : diff < 0 ? '−' : '±';
+    pctDiffLabel.textContent = diffSign + fmt(Math.abs(diff), 2) +
+      (diff > 0 ? ' (zvýšenie)' : diff < 0 ? ' (zníženie)' : '');
+    pctResultSub.textContent = amount > 0 ? 'Pôvodná suma: ' + fmt(amount, 2) : '';
+  }
+
+  pctAmountEl.addEventListener('focus', () => {
+    const raw = parsePctAmount(pctAmountEl.value);
+    pctAmountEl.value = raw > 0 ? String(raw) : '';
+  });
+  pctAmountEl.addEventListener('blur', () => {
+    pctAmountEl.value = formatPctAmount(parsePctAmount(pctAmountEl.value));
+  });
+  pctAmountEl.addEventListener('input', updatePct);
+  pctSliderEl.addEventListener('input', updatePct);
+
+  pctAmountEl.addEventListener('wheel', e => {
+    e.preventDefault();
+    const cur  = parsePctAmount(pctAmountEl.value);
+    const next = Math.max(0, cur + (e.deltaY < 0 ? 1 : -1) * 10);
+    pctAmountEl.value = formatPctAmount(next);
+    updatePct();
+  }, { passive: false });
+
+  addWheel(pctSliderEl, 1, 0, -100);
+
   // Init
   updateRateDirLabels();
   updateSliderLabels();
   sellPriceEl.value = formatSell(CURR[mode].sliderDefault);
   update();
+  pctAmountEl.value = formatPctAmount(1000);
+  updatePct();
 </script>
 </body>
 </html>
